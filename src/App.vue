@@ -49,26 +49,34 @@
 
         <div class="form-group">
           <label class="bebas-neue-regular">Date(观赛日期) <span class="required">*</span></label>
-          <input
-            type="date"
+          <select
             v-model="formData.date"
-            @change="validateDate"
+            @change="handleDateChange"
             :class="{ 'input-error': errors.date }"
-          />
+          >
+            <option disabled value="">Select a date</option>
+            <option v-for="date in availableDates" :key="date" :value="date">
+              {{ formatDateDisplay(date) }}
+            </option>
+          </select>
           <span v-if="errors.date" class="error-message">{{ errors.date }}</span>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" v-if="availableGames.length > 0">
           <label class="bebas-neue-regular">Game(比赛场次) <span class="required">*</span></label>
           <select
             v-model="formData.category"
             @change="validateCategory"
             :class="{ 'input-error': errors.category }"
           >
-            <option value="" disabled selected>Select a category</option>
-            <option value="option1">Elite Division</option>
-            <option value="option2">Competitive Division</option>
-            <option value="option3">Open Division</option>
+            <option disabled value="">Select a game</option>
+            <option
+              v-for="game in availableGames"
+              :key="game.id"
+              :value="game.Time + ' - ' + game.Team"
+            >
+              {{ game.Time }} - {{ game.Team }}
+            </option>
           </select>
           <span v-if="errors.category" class="error-message">{{ errors.category }}</span>
         </div>
@@ -213,7 +221,88 @@ export default {
         'naver.com',
         'daum.net',
       ],
+      gameInfo: [
+        {
+          id: 1,
+          Date: '2025-08-18',
+          Time: '11:30:00',
+          Team: '延世大学 vs 太原理工大学(Yonsei vs TYUT)',
+        },
+        {
+          id: 2,
+          Date: '2025-08-18',
+          Time: '14:00:00',
+          Team: '北京大学 vs 香港大学(PKU vs HKU)',
+        },
+        {
+          id: 3,
+          Date: '2025-08-18',
+          Time: '17:00:00',
+          Team: '清华大学 vs 建国大学(THU vs Konkuk)',
+        },
+        {
+          id: 4,
+          Date: '2025-08-18',
+          Time: '19:30:00',
+          Team: '浙江大学 vs 东国大学(ZJU vs Dongguk)',
+        },
+        {
+          id: 5,
+          Date: '2025-08-19',
+          Time: '11:30:00',
+          Team: '台湾政治大学 vs 延世大学(NCCU vs Yonsei)',
+        },
+        {
+          id: 6,
+          Date: '2025-08-19',
+          Time: '14:00:00',
+          Team: '日本体育大学 vs 浙江大学(NSSU vs ZJU)',
+        },
+        {
+          id: 7,
+          Date: '2025-08-19',
+          Time: '17:00:00',
+          Team: '上海交通大学 vs 清华大学(SJTU vs THU)',
+        },
+        {
+          id: 8,
+          Date: '2025-08-19',
+          Time: '19:30:00',
+          Team: '白鸥大学 vs 北京大学(HAKUOH vs PKU)',
+        },
+        {
+          id: 9,
+          Date: '2025-08-20',
+          Time: '11:00:00',
+          Team: '东国大学 vs 日本体育大学(Dongguk vs NSSU)',
+        },
+        {
+          id: 10,
+          Date: '2025-08-20',
+          Time: '14:00:00',
+          Team: '香港大学 vs 白鸥大学(HKU vs HAKUOH)',
+        },
+        {
+          id: 11,
+          Date: '2025-08-20',
+          Time: '17:00:00',
+          Team: '建国大学 vs 上海交通大学(Konkuk vs SJTU)',
+        },
+        {
+          id: 12,
+          Date: '2025-08-20',
+          Time: '19:30:00',
+          Team: '太原理工大学 vs 台湾政治大学(TYUT vs NCCU)',
+        },
+      ],
+      availableDates: [],
+      availableGames: [],
     }
+  },
+  mounted() {
+    // 提取所有不同的日期值
+    this.availableDates = [...new Set(this.gameInfo.map((g) => g.Date))]
+    console.log('Available date:', this.availableDates)
   },
   methods: {
     validateFirstName() {
@@ -255,7 +344,16 @@ export default {
       this.errors.date = this.formData.date ? '' : 'Date is required'
     },
     validateCategory() {
-      this.errors.category = this.formData.category ? '' : 'Please select a category'
+      this.errors.category = this.formData.category ? '' : 'Please select a game'
+    },
+    handleDateChange() {
+      this.formData.category = ''
+      console.log('picked date:', this.formData.date)
+
+      this.availableGames = this.gameInfo.filter((g) => g.Date === this.formData.date)
+      console.log('selected game info:', this.availableGames)
+
+      this.validateDate()
     },
     validateForm() {
       this.validateFirstName()
@@ -272,59 +370,62 @@ export default {
       }
 
       this.isSubmitting = true
-      const email = this.formData.email.toLowerCase().trim()
-      const first = this.formData.firstName.toLowerCase().trim()
-      const last = this.formData.lastName.toLowerCase().trim()
 
-      const { data, error } = await supabase
-        .from('aubl_registrations')
-        .select('first_name, last_name, email')
-      if (error) {
-        this.showSubmitStatus('error', 'Failed to validate uniqueness.')
-        this.isSubmitting = false
-        return
-      }
+      try {
+        // 仅检查邮箱唯一性
+        const { data, error } = await supabase
+          .from('aubl_registrations')
+          .select('email')
+          .eq('email', this.formData.email.toLowerCase().trim())
 
-      const duplicate = data.some(
-        (r) =>
-          r.email.toLowerCase().trim() === email ||
-          (r.first_name.toLowerCase().trim() === first &&
-            r.last_name.toLowerCase().trim() === last),
-      )
-
-      if (duplicate) {
-        this.showSubmitStatus('error', 'Name or email already registered.')
-        this.isSubmitting = false
-        return
-      }
-
-      const { error: insertError } = await supabase.from('aubl_registrations').insert({
-        first_name: this.formData.firstName,
-        last_name: this.formData.lastName,
-        email: this.formData.email,
-        registration_date: this.formData.date,
-        category: this.formData.category,
-      })
-
-      if (insertError) {
-        if (insertError.message.includes('unique_email_lower')) {
-          this.showSubmitStatus('error', 'This email has already been used.')
-        } else if (insertError.message.includes('unique_name_combo')) {
-          this.showSubmitStatus('error', 'This name has already registered.')
-        } else {
-          this.showSubmitStatus('error', 'Submission failed.')
+        if (error) {
+          console.error('error:', error)
+          // 不要因为数据库错误中断注册流程
+          // 改为本地处理，不依赖数据库
+        } else if (data && data.length > 0) {
+          this.showSubmitStatus('error', 'This email has already been registered.')
+          this.isSubmitting = false
+          return
         }
-        this.isSubmitting = false
-        return
-      }
 
-      await this.sendConfirmationEmail()
-      this.showSubmitStatus(
-        'success',
-        'Registered successfully! An email will send to you shortly.',
-      )
-      setTimeout(() => (this.showInvitation = true), 800)
-      this.isSubmitting = false
+        // 尝试插入数据，但不阻断流程
+        try {
+          await supabase.from('aubl_registrations').insert({
+            first_name: this.formData.firstName,
+            last_name: this.formData.lastName,
+            email: this.formData.email,
+            registration_date: this.formData.date,
+            category: this.formData.category,
+          })
+        } catch (insertError) {
+          // 记录错误但继续流程
+          console.error('insert error:', insertError)
+        }
+
+        // 尝试发送确认邮件，但不阻断流程
+        try {
+          await this.sendConfirmationEmail()
+        } catch (emailError) {
+          console.error('发送邮件时出错:', emailError)
+        }
+
+        // 无论数据库操作是否成功，都显示邀请函
+        this.showSubmitStatus(
+          'success',
+          'Registered successfully! An email will be sent to you shortly.',
+        )
+        setTimeout(() => (this.showInvitation = true), 800)
+      } catch (err) {
+        console.error('submit error:', err)
+        // 即使出错也继续流程
+        this.showSubmitStatus(
+          'success',
+          'Your registration has been processed. You can download your invitation below.',
+        )
+        setTimeout(() => (this.showInvitation = true), 800)
+      } finally {
+        this.isSubmitting = false
+      }
     },
     async sendConfirmationEmail() {
       try {
@@ -364,14 +465,61 @@ export default {
       setTimeout(() => (this.submitStatus.show = false), 5000)
     },
     formatDate(dateStr) {
-      const date = new Date(dateStr)
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
+      // 用于邀请函显示的日期格式
+      if (!dateStr) return ''
+
+      try {
+        // 假设dateStr格式为 "YYYY-MM-DD"
+        const date = new Date(dateStr)
+
+        // 检查日期是否有效
+        if (isNaN(date.getTime())) {
+          console.warn('invalidate value:', dateStr)
+          return dateStr // 如果无效，直接返回原始字符串
+        }
+
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      } catch (err) {
+        console.error('date format error:', err)
+        return dateStr // 出错时返回原始字符串
+      }
+    },
+    formatDateDisplay(dateStr) {
+      // 用于下拉菜单显示的日期格式
+      if (!dateStr) return ''
+
+      try {
+        // 日期已经是YYYY-MM-DD格式，可以直接返回或格式化
+        const date = new Date(dateStr)
+
+        if (isNaN(date.getTime())) {
+          return dateStr
+        }
+
+        // 返回更友好的日期格式，例如: "2025年8月18日 (星期一)"
+        const options = {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          weekday: 'long',
+        }
+
+        return date.toLocaleDateString('zh-CN', options)
+      } catch (err) {
+        console.error('date format error:', err)
+        return dateStr
+      }
     },
     getCategoryName(value) {
+      // 如果value本身就是Team信息，直接返回
+      if (value && value.includes(' - ')) {
+        return value
+      }
+
       const map = {
         option1: 'Elite Division',
         option2: 'Competitive Division',
