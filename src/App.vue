@@ -319,7 +319,10 @@ export default {
       }
 
       await this.sendConfirmationEmail()
-      this.showSubmitStatus('success', 'Registered successfully!')
+      this.showSubmitStatus(
+        'success',
+        'Registered successfully! An email will send to you shortly.',
+      )
       setTimeout(() => (this.showInvitation = true), 800)
       this.isSubmitting = false
     },
