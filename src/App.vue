@@ -101,6 +101,7 @@
                 class="invitation-logo"
               />
               <h1 class="bebas-neue-regular invitation-title">OFFICIAL INVITATION</h1>
+              <h2 class="bebas-neue-regular invitation-subtitle">官方邀请函</h2>
             </div>
 
             <div class="invitation-content">
@@ -109,30 +110,56 @@
                 <span class="invitation-name">{{ formData.firstName }} {{ formData.lastName }}</span
                 >,
               </p>
-              <p class="invitation-text">
-                We are pleased to invite you to the
-                <strong>Asian University Basketball League</strong> event. Your registration has
-                been confirmed for the
-                <strong class="highlight-text">{{ getCategoryName(formData.category) }}</strong> on
-                <strong class="highlight-text">{{ formatDate(formData.date) }}</strong
-                >.
+              <p class="invitation-greeting-cn">
+                尊敬的
+                <span class="invitation-name">{{ formData.lastName }}{{ formData.firstName }}</span
+                >:
               </p>
-              <p class="invitation-details">
-                Please bring this invitation with you to the event. A confirmation email has also
-                been sent to <span class="highlight-text">{{ formData.email }}</span
-                >.
-              </p>
+
+              <div class="invitation-text">
+                <p class="en">
+                  We are pleased to invite you to the
+                  <strong>Asian University Basketball League</strong> event. Your registration has
+                  been confirmed for the
+                  <strong class="highlight-text">{{ getCategoryName(formData.category) }}</strong>
+                  on <strong class="highlight-text">{{ formatDate(formData.date) }}</strong
+                  >.
+                </p>
+                <p class="cn">
+                  我们很高兴邀请您参加<strong>亚洲大学生篮球联赛</strong>。您已成功注册
+                  <strong class="highlight-text">{{ formatDateCN(formData.date) }}</strong
+                  >的
+                  <strong class="highlight-text">{{ getCategoryName(formData.category) }}</strong
+                  >比赛。
+                </p>
+              </div>
+
+              <div class="invitation-details">
+                <p class="en">
+                  Please bring this invitation with you to the event. A confirmation email has also
+                  been sent to <span class="highlight-text">{{ formData.email }}</span
+                  >.
+                </p>
+                <p class="cn">
+                  请在比赛当天携带此邀请函。确认邮件已发送至<span class="highlight-text">{{
+                    formData.email
+                  }}</span
+                  >。
+                </p>
+              </div>
             </div>
 
             <div class="invitation-footer">
               <div class="qr-code">
                 <img class="qr-image" src="@/assets/QRCODE.jpg" alt="QR Code" />
-                <p>Scan for event details</p>
+                <p class="en">Scan for event details</p>
+                <p class="cn">扫码获取赛事详情</p>
               </div>
               <div class="invitation-signature">
                 <img src="./assets/signature.png" alt="Signature" class="signature-image" />
                 <p class="signature-line"></p>
-                <p>AUBL Committee</p>
+                <p class="en">AUBL Committee</p>
+                <p class="cn">亚洲大学生篮球联赛组委会</p>
               </div>
             </div>
             <div class="invitation-watermark">AUBL 2025</div>
@@ -363,6 +390,7 @@ export default {
       this.validateCategory()
       return !Object.values(this.errors).some((e) => e !== '')
     },
+
     async submitForm() {
       if (!this.validateForm()) {
         this.showSubmitStatus('error', 'Please correct the errors before submitting.')
@@ -370,59 +398,126 @@ export default {
       }
 
       this.isSubmitting = true
+      const email = this.formData.email.toLowerCase().trim()
+      const first = this.formData.firstName.toLowerCase().trim()
+      const last = this.formData.lastName.toLowerCase().trim()
 
       try {
-        // 仅检查邮箱唯一性
+        // 检查唯一性
         const { data, error } = await supabase
           .from('aubl_registrations')
-          .select('email')
-          .eq('email', this.formData.email.toLowerCase().trim())
+          .select('first_name, last_name, email')
 
         if (error) {
-          console.error('error:', error)
-          // 不要因为数据库错误中断注册流程
-          // 改为本地处理，不依赖数据库
-        } else if (data && data.length > 0) {
+          console.error('验证唯一性时出错:', error)
+          this.showSubmitStatus('error', 'Failed to validate uniqueness.')
+          this.isSubmitting = false
+          return
+        }
+
+        // 先检查邮箱是否已存在
+        const emailExists = data.some((r) => r.email.toLowerCase().trim() === email)
+        if (emailExists) {
           this.showSubmitStatus('error', 'This email has already been registered.')
           this.isSubmitting = false
           return
         }
 
-        // 尝试插入数据，但不阻断流程
-        try {
-          await supabase.from('aubl_registrations').insert({
-            first_name: this.formData.firstName,
-            last_name: this.formData.lastName,
-            email: this.formData.email,
-            registration_date: this.formData.date,
-            category: this.formData.category,
-          })
-        } catch (insertError) {
-          // 记录错误但继续流程
-          console.error('insert error:', insertError)
+        // 再检查姓名是否已存在
+        const nameExists = data.some(
+          (r) =>
+            r.first_name.toLowerCase().trim() === first &&
+            r.last_name.toLowerCase().trim() === last,
+        )
+        if (nameExists) {
+          this.showSubmitStatus('error', 'This name has already been registered.')
+          this.isSubmitting = false
+          return
         }
 
-        // 尝试发送确认邮件，但不阻断流程
+        // 插入新记录
+        const { error: insertError } = await supabase.from('aubl_registrations').insert({
+          first_name: this.formData.firstName,
+          last_name: this.formData.lastName,
+          email: this.formData.email,
+          registration_date: this.formData.date,
+          category: this.formData.category,
+        })
+
+        if (insertError) {
+          console.error('插入数据时出错:', insertError)
+
+          // 更详细地处理插入错误
+          if (insertError.code === '23505') {
+            // PostgreSQL 唯一性约束违反错误码
+            if (insertError.message.includes('email')) {
+              this.showSubmitStatus('error', 'This email has already been registered.')
+            } else if (
+              insertError.message.includes('first_name') ||
+              insertError.message.includes('last_name')
+            ) {
+              this.showSubmitStatus('error', 'This name has already been registered.')
+            } else {
+              this.showSubmitStatus('error', 'This registration already exists.')
+            }
+          } else if (insertError.code === '409' || insertError.status === 409) {
+            // HTTP 409 Conflict
+            // 尝试从错误消息中提取更详细的信息
+            if (insertError.message && insertError.message.toLowerCase().includes('email')) {
+              this.showSubmitStatus('error', 'This email has already been registered.')
+            } else if (
+              insertError.message &&
+              (insertError.message.toLowerCase().includes('name') ||
+                insertError.message.toLowerCase().includes('first') ||
+                insertError.message.toLowerCase().includes('last'))
+            ) {
+              this.showSubmitStatus('error', 'This name has already been registered.')
+            } else {
+              this.showSubmitStatus('error', 'A registration with this information already exists.')
+            }
+          } else {
+            // 其他类型的错误
+            this.showSubmitStatus(
+              'error',
+              'Submission failed: ' + (insertError.message || 'Database error'),
+            )
+          }
+
+          this.isSubmitting = false
+          return
+        }
+
+        // 尝试发送确认邮件
         try {
           await this.sendConfirmationEmail()
         } catch (emailError) {
           console.error('发送邮件时出错:', emailError)
         }
 
-        // 无论数据库操作是否成功，都显示邀请函
+        // 显示成功消息和邀请函
         this.showSubmitStatus(
           'success',
           'Registered successfully! An email will be sent to you shortly.',
         )
         setTimeout(() => (this.showInvitation = true), 800)
       } catch (err) {
-        console.error('submit error:', err)
-        // 即使出错也继续流程
-        this.showSubmitStatus(
-          'success',
-          'Your registration has been processed. You can download your invitation below.',
-        )
-        setTimeout(() => (this.showInvitation = true), 800)
+        console.error('表单提交过程中出错:', err)
+
+        // 尝试处理可能是409错误但被捕获为一般错误的情况
+        if (err.status === 409 || (err.message && err.message.includes('409'))) {
+          if (err.message && err.message.toLowerCase().includes('email')) {
+            this.showSubmitStatus('error', 'This email has already been registered.')
+          } else if (err.message && err.message.toLowerCase().includes('name')) {
+            this.showSubmitStatus('error', 'This name has already been registered.')
+          } else {
+            this.showSubmitStatus('error', 'A registration with this information already exists.')
+          }
+        } else {
+          this.showSubmitStatus(
+            'error',
+            'An error occurred during submission: ' + (err.message || 'Unknown error'),
+          )
+        }
       } finally {
         this.isSubmitting = false
       }
@@ -465,7 +560,7 @@ export default {
       setTimeout(() => (this.submitStatus.show = false), 5000)
     },
     formatDate(dateStr) {
-      // 用于邀请函显示的日期格式
+      // 用于邀请函显示的英文日期格式
       if (!dateStr) return ''
 
       try {
@@ -486,6 +581,28 @@ export default {
       } catch (err) {
         console.error('date format error:', err)
         return dateStr // 出错时返回原始字符串
+      }
+    },
+    formatDateCN(dateStr) {
+      // 用于邀请函显示的中文日期格式
+      if (!dateStr) return ''
+
+      try {
+        const date = new Date(dateStr)
+
+        if (isNaN(date.getTime())) {
+          return dateStr
+        }
+
+        return date.toLocaleDateString('zh-CN', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          weekday: 'long',
+        })
+      } catch (err) {
+        console.error('date format error:', err)
+        return dateStr
       }
     },
     formatDateDisplay(dateStr) {
