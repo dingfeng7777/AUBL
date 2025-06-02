@@ -1,5 +1,7 @@
 <template>
   <div class="page-container">
+    <div class="glow-bar left"></div>
+    <div class="glow-bar right"></div>
     <!-- Logo 区域 -->
     <div class="logo-container">
       <img src="./assets/AUBL_Logo_Horizontal.jpg" alt="AUBL Logo" class="logo-image" />
@@ -675,8 +677,8 @@ body {
   padding: 0;
   height: 100%;
   width: 100%;
-  background-color: #001a2c;
   font-family: 'Montserrat', sans-serif;
+  background: linear-gradient(to right, #003a5c, #001a2c 40%, #001a2c 60%, #003a5c); /* 渐变 */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -706,6 +708,27 @@ body {
   font-weight: 400;
   font-style: normal;
   letter-spacing: 1px;
+}
+
+.glow-bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 200px;
+  z-index: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 191, 255, 0.5), transparent 70%);
+  filter: blur(80px);
+  opacity: 0.7;
+}
+
+.glow-bar.left {
+  left: -80px;
+  transform: rotate(-20deg);
+}
+
+.glow-bar.right {
+  right: -80px;
+  transform: rotate(20deg);
 }
 
 .page-container {
