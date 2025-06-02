@@ -318,9 +318,28 @@ export default {
         return
       }
 
+      await this.sendConfirmationEmail()
       this.showSubmitStatus('success', 'Registered successfully!')
       setTimeout(() => (this.showInvitation = true), 800)
       this.isSubmitting = false
+    },
+    async sendConfirmationEmail() {
+      try {
+        const res = await fetch('http://localhost:3001/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: this.formData.email,
+            firstName: this.formData.firstName,
+            lastName: this.formData.lastName,
+            category: this.getCategoryName(this.formData.category),
+            date: this.formatDate(this.formData.date),
+          }),
+        })
+        if (!res.ok) console.warn('Mail API error:', await res.text())
+      } catch (e) {
+        console.error('Email send failed:', e)
+      }
     },
     downloadInvitation() {
       html2canvas(this.$refs.invitationCard, {
