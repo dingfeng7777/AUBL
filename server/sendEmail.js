@@ -1,14 +1,12 @@
 // server/sendEmail.js
 /* eslint-disable no-undef */
+require('dotenv').config()
 const express = require('express')
 const bodyParser = require('body-parser')
 const cors = require('cors')
 const mailjet = require('node-mailjet')
 
-const mailjetClient = mailjet.connect(
-  '7c9b8f75f183b8f83fd64b90ff0f2fbe', // API Key
-  '066bec0c5da60c58c9bdf6151598e609', // Secret Key
-)
+const mailjetClient = mailjet.connect(process.env.MJ_APIKEY_PUBLIC, process.env.MJ_APIKEY_PRIVATE)
 
 const app = express()
 app.use(cors())
@@ -80,5 +78,5 @@ app.post('/send-email', async (req, res) => {
   }
 })
 
-const PORT = 3001
+const PORT = process.env.PORT || 3001
 app.listen(PORT, () => console.log(`🚀 Mailjet server running on http://localhost:${PORT}`))
