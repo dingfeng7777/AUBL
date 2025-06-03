@@ -190,10 +190,10 @@
 import { createClient } from '@supabase/supabase-js'
 import html2canvas from 'html2canvas'
 
-const supabaseUrl = 'https://zodtqxwfbqtmvezdfrwh.supabase.co'
-const supabaseKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZHRxeHdmYnF0bXZlemRmcndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2MDM5NzksImV4cCI6MjA2NDE3OTk3OX0.W17_rkfIdtwKhFuuNUYMD7O5c2Pnw7nRgUeiSU8sM9I'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY
 const supabase = createClient(supabaseUrl, supabaseKey)
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 
 export default {
   name: 'AUBLForm',
@@ -526,7 +526,7 @@ export default {
     },
     async sendConfirmationEmail() {
       try {
-        const res = await fetch('http://localhost:3001/send-email', {
+        const res = await fetch(`${apiBaseUrl}/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
